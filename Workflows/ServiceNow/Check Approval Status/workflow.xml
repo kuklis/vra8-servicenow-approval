@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:workflow xmlns:ns2="http://vmware.com/vco/workflow" root-name="item1" object-name="workflow:name=generic" id="61ae5ffe-0b5b-4b40-be5d-48a5d8d5696f" editor-version="1.6" version="0.0.0" api-version="6.0.0" restartMode="1" resumeFromFailedMode="0">
+    <display-name>Check Approval Status</display-name>
+    <position y="18.136363636363633" x="65.0"/>
+    <input>
+        <param name="snowRest" type="REST:RESTHost"/>
+        <param name="request_sysid" type="string"/>
+    </input>
+    <output>
+        <param name="approval_status" type="string"/>
+    </output>
+    <workflow-item name="item0" type="end" end-mode="0" comparator="0">
+        <in-binding/>
+        <out-binding/>
+        <position y="18.136363636363633" x="344.5"/>
+    </workflow-item>
+    <workflow-item name="item1" out-name="item0" type="task" comparator="0">
+        <display-name>Check Request</display-name>
+        <script encoded="false">var request = snowRest.createRequest("GET", "/api/now/table/sc_request/" + request_sysid);
+request.contentType = "application/json";
+var response = request.execute();
+
+System.debug("statusCode: " + response.statusCode);
+if (response.statusCode &gt;= 400)
+  throw "Error getting ServiceNow request data";
+
+var request_number = JSON.parse(response.contentAsString).result.number;
+approval_status = JSON.parse(response.contentAsString).result.approval;
+
+System.debug("ServiceNow request " + request_number + " approval status: " + approval_status);</script>
+        <in-binding>
+            <bind name="snowRest" type="REST:RESTHost" export-name="snowRest"/>
+            <bind name="request_sysid" type="string" export-name="request_sysid"/>
+        </in-binding>
+        <out-binding>
+            <bind name="approval_status" type="string" export-name="approval_status"/>
+        </out-binding>
+        <position y="28.136363636363633" x="164.5"/>
+    </workflow-item>
+    <presentation>
+        <p-param name="snowRest">
+            <desc>snowRest</desc>
+        </p-param>
+        <p-param name="request_sysid">
+            <desc>request_sysid</desc>
+        </p-param>
+    </presentation>
+</ns2:workflow>
