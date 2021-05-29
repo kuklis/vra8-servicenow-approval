@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:workflow xmlns:ns2="http://vmware.com/vco/workflow" root-name="item1" object-name="workflow:name=generic" id="e9e202f6-ae14-43e7-bb8f-f209d08a6168" editor-version="1.6" version="0.0.0" api-version="6.0.0" restartMode="1" resumeFromFailedMode="0">
+    <display-name>Catalog - VM Provisioning</display-name>
+    <position y="18.136363636363633" x="65.0"/>
+    <input>
+        <param name="snowRest" type="REST:RESTHost"/>
+        <param name="description" type="string"/>
+    </input>
+    <output>
+        <param name="request_number" type="string"/>
+        <param name="request_sysid" type="string"/>
+    </output>
+    <attrib name="catalogitem_sysid" type="string">
+        <value encoded="n">f3937ada4fff0200086eeed18110c7f2</value>
+    </attrib>
+    <attrib name="primary_contact_sysid" type="string">
+        <value encoded="n">aeeaa0e21b94301080685283604bcb84</value>
+    </attrib>
+    <attrib name="cost_center_sysid" type="string">
+        <value encoded="n">221f79b7c6112284005d646b76ab978c</value>
+    </attrib>
+    <attrib name="business_purpose" type="string">
+        <value encoded="n">test</value>
+    </attrib>
+    <workflow-item name="item0" type="end" end-mode="0" comparator="0">
+        <in-binding/>
+        <out-binding/>
+        <position y="18.136363636363633" x="344.5"/>
+    </workflow-item>
+    <workflow-item name="item1" out-name="item0" type="task" comparator="0">
+        <display-name>Catalog request</display-name>
+        <script encoded="false">var body = {
+  sysparm_quantity: 1,
+  variables: {
+    primary_contact: primary_contact_sysid,
+    cost_center: cost_center_sysid,
+    business_purpose: business_purpose,
+    cpu: 2,
+    ram: 4,
+    storage: "40 GB",
+    description: description
+  }
+};
+
+var request = snowRest.createRequest("POST", "/api/sn_sc/servicecatalog/items/" + catalogitem_sysid + "/order_now", JSON.stringify(body));
+request.contentType = "application/json";
+var response = request.execute();
+
+System.debug("statusCode: " + response.statusCode);
+if (response.statusCode &gt;= 400)
+  throw "Error making ServiceNow catalog request";
+
+System.debug("Response content: " + response.contentAsString);
+
+request_number = JSON.parse(response.contentAsString).result.request_number;
+request_sysid = JSON.parse(response.contentAsString).result.sys_id;
+
+System.log("Opened ServiceNow request " + request_number);</script>
+        <in-binding>
+            <bind name="snowRest" type="REST:RESTHost" export-name="snowRest"/>
+            <bind name="catalogitem_sysid" type="string" export-name="catalogitem_sysid"/>
+            <bind name="primary_contact_sysid" type="string" export-name="primary_contact_sysid"/>
+            <bind name="cost_center_sysid" type="string" export-name="cost_center_sysid"/>
+            <bind name="business_purpose" type="string" export-name="business_purpose"/>
+            <bind name="description" type="string" export-name="description"/>
+        </in-binding>
+        <out-binding>
+            <bind name="request_number" type="string" export-name="request_number"/>
+            <bind name="request_sysid" type="string" export-name="request_sysid"/>
+        </out-binding>
+        <position y="28.136363636363633" x="164.5"/>
+    </workflow-item>
+    <presentation>
+        <p-param name="snowRest">
+            <desc>snowRest</desc>
+        </p-param>
+        <p-param name="description">
+            <desc>description</desc>
+        </p-param>
+    </presentation>
+</ns2:workflow>
