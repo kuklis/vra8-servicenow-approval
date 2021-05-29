@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:workflow xmlns:ns2="http://vmware.com/vco/workflow" root-name="item1" object-name="workflow:name=generic" id="88bbc3e9-d5b1-47e7-8d12-3cc88eef1c86" editor-version="1.6" version="0.0.0" api-version="6.0.0" restartMode="1" resumeFromFailedMode="0">
+    <display-name>Request Approval</display-name>
+    <position y="18.136363636363633" x="65.0"/>
+    <input>
+        <param name="inputProperties" type="Properties"/>
+    </input>
+    <output/>
+    <attrib name="snowRest" type="REST:RESTHost">
+        <value encoded="n">dunes://service.dunes.ch/CustomSDKObject?id='2e7a98af-fd9b-40cd-8f85-c54ea9f9d62d'&amp;dunesName='REST:RESTHost'</value>
+    </attrib>
+    <attrib name="description" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="request_number" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="request_sysid" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="deploymentId" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <workflow-item name="item0" type="end" end-mode="0" comparator="0">
+        <in-binding/>
+        <out-binding/>
+        <position y="18.136363636363633" x="624.5"/>
+    </workflow-item>
+    <workflow-item name="item1" out-name="item2" type="task" comparator="0">
+        <display-name>Process Input</display-name>
+        <script encoded="false">if (inputProperties)
+  System.debug("inputProperties =\n" + JSON.stringify(inputProperties, null, 2));
+
+deploymentId = inputProperties.get("deploymentId");
+var userName = inputProperties.get("userName");
+var projectName = inputProperties.get("projectName");
+var requestInputs = inputProperties.get("requestInputs");
+var flavor = requestInputs.get("flavor") || "undefined";
+
+System.log("userName: " + userName);
+System.log("projectName: " + projectName);
+System.log("flavor: " + flavor);
+
+description = "User " + userName + " in project " + projectName + " requested a VM with size " + flavor; 
+</script>
+        <in-binding>
+            <bind name="inputProperties" type="Properties" export-name="inputProperties"/>
+        </in-binding>
+        <out-binding>
+            <bind name="description" type="string" export-name="description"/>
+            <bind name="deploymentId" type="string" export-name="deploymentId"/>
+        </out-binding>
+        <position y="28.136363636363633" x="164.5"/>
+    </workflow-item>
+    <workflow-item name="item2" out-name="item3" type="link" linked-workflow-id="e9e202f6-ae14-43e7-bb8f-f209d08a6168" comparator="0">
+        <display-name>Catalog - VM Provisioning</display-name>
+        <in-binding>
+            <bind name="snowRest" type="REST:RESTHost" export-name="snowRest"/>
+            <bind name="description" type="string" export-name="description"/>
+        </in-binding>
+        <out-binding>
+            <bind name="request_number" type="string" export-name="request_number"/>
+            <bind name="request_sysid" type="string" export-name="request_sysid"/>
+        </out-binding>
+        <position y="28.136363636363633" x="304.5"/>
+    </workflow-item>
+    <workflow-item name="item3" out-name="item0" type="task" comparator="0">
+        <display-name>Start polling</display-name>
+        <script encoded="false">// WF name: Poll SNOW and Approve vRA
+var workflowToExecute = Server.getWorkflowWithId("451e59c2-e461-43ea-89ef-0ffb64b75643");
+
+// schedule
+var cycle = "every-minutes"
+var pattern = "0"; // at 0 second
+
+var input = new Properties({
+  request_number: request_number,
+  request_sysid: request_sysid,
+  deploymentId: deploymentId,
+  __taskName:  "Polling SNOW " + request_number,
+  __taskDescription: "Polling SNOW for approval. Once the request approval decided, this scheduled task cancels itself."
+});
+
+var scheduled_task = workflowToExecute.scheduleRecurrently(input, pattern, cycle);
+scheduled_task.addParameter("scheduled_task", scheduled_task);
+
+System.log("Sheduled polling of ServiceNow request " + request_number);
+</script>
+        <in-binding>
+            <bind name="request_number" type="string" export-name="request_number"/>
+            <bind name="request_sysid" type="string" export-name="request_sysid"/>
+            <bind name="deploymentId" type="string" export-name="deploymentId"/>
+        </in-binding>
+        <out-binding/>
+        <position y="28.136363636363633" x="444.5"/>
+    </workflow-item>
+    <presentation>
+        <p-param name="inputProperties">
+            <desc>inputProperties</desc>
+        </p-param>
+    </presentation>
+</ns2:workflow>
