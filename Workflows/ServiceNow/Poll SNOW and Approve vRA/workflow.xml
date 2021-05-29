@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ns2:workflow xmlns:ns2="http://vmware.com/vco/workflow" root-name="item5" object-name="workflow:name=generic" id="451e59c2-e461-43ea-89ef-0ffb64b75643" editor-version="1.6" version="0.0.0" api-version="6.0.0" restartMode="1" resumeFromFailedMode="0">
+    <display-name>Poll SNOW and Approve vRA</display-name>
+    <position y="9.045454545454543" x="45.0"/>
+    <input>
+        <param name="request_number" type="string"/>
+        <param name="request_sysid" type="string"/>
+        <param name="deploymentId" type="string"/>
+        <param name="scheduled_task" type="Task"/>
+    </input>
+    <output/>
+    <attrib name="snowRest" type="REST:RESTHost">
+        <value encoded="n">dunes://service.dunes.ch/CustomSDKObject?id='2e7a98af-fd9b-40cd-8f85-c54ea9f9d62d'&amp;dunesName='REST:RESTHost'</value>
+    </attrib>
+    <attrib name="snow_status" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="vraHost" type="VRA:Host">
+        <value encoded="n">dunes://service.dunes.ch/CustomSDKObject?id='Gx0hbDCvSJmuW_TwnIT17g'&amp;dunesName='VRA:Host'</value>
+    </attrib>
+    <attrib name="itemId" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="errorCode" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <attrib name="vra_status" type="string">
+        <value encoded="n"></value>
+    </attrib>
+    <workflow-item name="item2" out-name="item3" type="link" linked-workflow-id="61ae5ffe-0b5b-4b40-be5d-48a5d8d5696f" comparator="0">
+        <display-name>Check Approval Status</display-name>
+        <in-binding>
+            <bind name="snowRest" type="REST:RESTHost" export-name="snowRest"/>
+            <bind name="request_sysid" type="string" export-name="request_sysid"/>
+        </in-binding>
+        <out-binding>
+            <bind name="approval_status" type="string" export-name="snow_status"/>
+        </out-binding>
+        <position y="19.045454545454543" x="424.5"/>
+    </workflow-item>
+    <workflow-item name="item3" out-name="item6" alt-out-name="item7" type="custom-condition" comparator="0">
+        <display-name>decided in SNOW?</display-name>
+        <script encoded="false">return ("approved" == snow_status) || ("rejected" == snow_status);</script>
+        <in-binding>
+            <bind name="snow_status" type="string" export-name="snow_status"/>
+        </in-binding>
+        <out-binding/>
+        <position y="9.045454545454543" x="564.5"/>
+    </workflow-item>
+    <workflow-item name="item4" type="end" end-mode="0" comparator="0">
+        <in-binding/>
+        <out-binding/>
+        <position y="72.68181818181817" x="184.5"/>
+    </workflow-item>
+    <workflow-item name="item5" out-name="item8" catch-name="item4" throw-bind-name="errorCode" type="task" comparator="0">
+        <display-name>Search for approval</display-name>
+        <script encoded="false">var restClient = vraHost.createRestClient();
+var request = restClient.createRequest("GET", "/approval/api/approvals?search=" + deploymentId);
+
+var response = restClient.execute(request);
+
+System.debug("statusCode: " + response.statusCode);
+if (response.statusCode &gt;= 400)
+  throw "No pending vRA approvals found.";
+
+System.log("Number of approvals found: " + JSON.parse(response.contentAsString).numberOfElements);
+
+itemId = JSON.parse(response.contentAsString).content[0].id;
+status = JSON.parse(response.contentAsString).content[0].status;
+</script>
+        <in-binding>
+            <bind name="vraHost" type="VRA:Host" export-name="vraHost"/>
+            <bind name="deploymentId" type="string" export-name="deploymentId"/>
+        </in-binding>
+        <out-binding>
+            <bind name="itemId" type="string" export-name="itemId"/>
+            <bind name="status" type="string" export-name="vra_status"/>
+        </out-binding>
+        <position y="19.045454545454543" x="144.5"/>
+    </workflow-item>
+    <workflow-item name="item6" out-name="item0" type="task" comparator="0">
+        <display-name>Approve in vRA</display-name>
+        <script encoded="false">var restClient = vraHost.createRestClient();
+var body = {
+  itemId: itemId,
+  action: ("approved" == approval_status ? "APPROVE" : "REJECT"),
+  comment: "ServiceNow request " + request_number + " " + approval_status
+};
+var request = restClient.createRequest("POST", "/approval/api/approvals/action", JSON.stringify(body));
+var response = restClient.execute(request);
+
+System.debug("statusCode: " + response.statusCode);
+if (response.statusCode &gt;= 400)
+  throw "Error approving in vRA";
+</script>
+        <in-binding>
+            <bind name="vraHost" type="VRA:Host" export-name="vraHost"/>
+            <bind name="itemId" type="string" export-name="itemId"/>
+            <bind name="approval_status" type="string" export-name="snow_status"/>
+            <bind name="request_number" type="string" export-name="request_number"/>
+        </in-binding>
+        <out-binding/>
+        <position y="82.68181818181817" x="564.5"/>
+    </workflow-item>
+    <workflow-item name="item0" out-name="item4" type="task" comparator="0">
+        <display-name>Delete scheduled task</display-name>
+        <script encoded="false">System.log("Delete task: " + scheduled_task.name);
+scheduled_task.cancel();
+</script>
+        <in-binding>
+            <bind name="scheduled_task" type="Task" export-name="scheduled_task"/>
+        </in-binding>
+        <out-binding/>
+        <position y="82.68181818181817" x="284.5"/>
+    </workflow-item>
+    <workflow-item name="item7" type="end" end-mode="0" comparator="0">
+        <in-binding/>
+        <out-binding/>
+        <position y="9.045454545454543" x="745.0"/>
+    </workflow-item>
+    <workflow-item name="item8" out-name="item0" alt-out-name="item2" type="custom-condition" comparator="0">
+        <display-name>vRA approved?</display-name>
+        <script encoded="false">return "APPROVED" == status;</script>
+        <in-binding>
+            <bind name="status" type="string" export-name="vra_status"/>
+        </in-binding>
+        <out-binding/>
+        <position y="9.045454545454543" x="285.0"/>
+    </workflow-item>
+    <presentation>
+        <p-param name="request_number">
+            <desc>request_number</desc>
+        </p-param>
+        <p-param name="request_sysid">
+            <desc>request_sysid</desc>
+        </p-param>
+        <p-param name="deploymentId">
+            <desc>deploymentId</desc>
+        </p-param>
+        <p-param name="scheduled_task">
+            <desc>scheduled_task</desc>
+        </p-param>
+    </presentation>
+</ns2:workflow>
